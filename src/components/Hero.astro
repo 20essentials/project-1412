@@ -92,14 +92,18 @@ const VIDEOS = Array.from({ length: TOTAL_VIDEOS }, (_, index) => ({
     return (current % TOTAL_CLIPS) + 1;
   }
 
+  function preloadNext() {
+    const next = nextClip();
+    bottom.src = baseUrl(`/assets/videos/v${next}.mp4`);
+    bottom.load();
+  }
+
   function cycle() {
     const next = nextClip();
 
     bottom.style.zIndex = '0';
     bottom.style.animation = 'none';
-    bottom.src = baseUrl(`/assets/videos/v${next}.mp4`);
     bottom.currentTime = 0;
-    bottom.load();
 
     top.style.zIndex = '1';
     top.style.animation = `hide ${HIDE_MS}ms ease-in-out forwards`;
@@ -115,6 +119,7 @@ const VIDEOS = Array.from({ length: TOTAL_VIDEOS }, (_, index) => ({
         [top, bottom] = [bottom, top];
         current = next;
         $container.style.setProperty('--current-index', String(next));
+        preloadNext();
       },
       { once: true }
     );
@@ -122,4 +127,6 @@ const VIDEOS = Array.from({ length: TOTAL_VIDEOS }, (_, index) => ({
 
   top.addEventListener('ended', cycle);
   bottom.addEventListener('ended', cycle);
+
+  preloadNext();
 </script>
