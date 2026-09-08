@@ -1,25 +1,28 @@
 ---
 import { baseUrl } from '@/utils/functions';
+
 const TOTAL_VIDEOS = 2;
+const VIDEOS = Array.from({ length: TOTAL_VIDEOS }, (_, index) => ({
+  src: baseUrl(`/assets/videos/v${index + 1}.mp4`),
+  zIndex: index === 0 ? 1 : 0,
+  autoplay: index === 0
+}));
 ---
 
 <section class='am-main-container'>
   <aside class='container'>
     {
-      Array.from({ length: TOTAL_VIDEOS }, (_, i) => {
-        const isFirstVideo = i === 0;
-        return (
-          <video
-            src={baseUrl(`/assets/videos/v${i + 1}.mp4`)}
-            class={`am-video`}
-            autoplay={isFirstVideo}
-            muted
-            style={{
-              zIndex: isFirstVideo ? 1 : 0
-            }}
-          />
-        );
-      })
+      VIDEOS.map(video => (
+        <video
+          src={video.src}
+          class='am-video'
+          muted
+          playsinline
+          preload='auto'
+          autoplay={video.autoplay}
+          style={{ zIndex: video.zIndex }}
+        />
+      ))
     }
   </aside>
 </section>
@@ -34,6 +37,7 @@ const TOTAL_VIDEOS = 2;
     --grow: 3.4;
     --final-state: inset(100% 0 0 0);
     --current-index: 1;
+    --hide-duration: 1000ms;
 
     .container {
       width: calc(16vmax * var(--grow));
@@ -73,42 +77,49 @@ const TOTAL_VIDEOS = 2;
 
 <script>
   import { $, $$, baseUrl } from '@/utils/functions';
-  const [$video1, $video2] = $$<HTMLVideoElement>('.am-video');
-  let currentIndexVideo = 1;
-  const MAX_VIDEOS = 6;
-  const $mainContainer = $(' .am-main-container');
+  const $container = $('.am-main-container');
+  const $videos = $$<HTMLVideoElement>('.am-video');
+  const TOTAL_CLIPS = 6;
+  const HIDE_MS =
+    parseFloat(getComputedStyle($container).getPropertyValue('--hide-duration')) || 1000;
+  const HEAD_START_MS = 250;
 
-  function hideVideo({
-    video,
-    video_2
-  }: {
-    video: HTMLVideoElement;
-    video_2: HTMLVideoElement;
-  }) {
-    video.style.animation = 'hide 1s ease-in-out forwards';
-    video.addEventListener('animationend', () => {
-      const nextIndex = (currentIndexVideo % MAX_VIDEOS) + 1;
-      video_2.src = baseUrl(`/assets/videos/v${nextIndex}.mp4`);
-      currentIndexVideo = nextIndex;
-      $mainContainer.style.setProperty('--current-index', String(nextIndex));
-      video_2.style.zIndex = '1';
-      video_2.play();
-      video.style.zIndex = '0';
-      video.style.animation = 'none';
-    });
+  let top = $videos[0];
+  let bottom = $videos[1];
+  let current = 1;
+
+  function nextClip() {
+    return (current % TOTAL_CLIPS) + 1;
   }
 
-  $video2.addEventListener('ended', () => {
-    hideVideo({
-      video: $video2,
-      video_2: $video1
-    });
-  });
+  function cycle() {
+    const next = nextClip();
 
-  $video1.addEventListener('ended', () => {
-    hideVideo({
-      video: $video1,
-      video_2: $video2
-    });
-  });
+    bottom.style.zIndex = '0';
+    bottom.style.animation = 'none';
+    bottom.src = baseUrl(`/assets/videos/v${next}.mp4`);
+    bottom.currentTime = 0;
+    bottom.load();
+
+    top.style.zIndex = '1';
+    top.style.animation = `hide ${HIDE_MS}ms ease-in-out forwards`;
+
+    const previewTimer = window.setTimeout(() => {
+      bottom.play().catch(() => undefined);
+    }, HIDE_MS - HEAD_START_MS);
+
+    top.addEventListener(
+      'animationend',
+      () => {
+        window.clearTimeout(previewTimer);
+        [top, bottom] = [bottom, top];
+        current = next;
+        $container.style.setProperty('--current-index', String(next));
+      },
+      { once: true }
+    );
+  }
+
+  top.addEventListener('ended', cycle);
+  bottom.addEventListener('ended', cycle);
 </script>
